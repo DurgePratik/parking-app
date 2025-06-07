@@ -1,3 +1,4 @@
+require('dotenv').config();
 const express = require('express');
 const Razorpay = require('razorpay');
 const cors = require('cors');
@@ -16,9 +17,10 @@ const db = admin.firestore();
 
  
 const razorpay = new Razorpay({
-  key_id: 'rzp_test_Eb20fMVM3hFoPE',
-  key_secret: 'dJDKAUV9SPwpGrt4XXmhwPoH',
+  key_id: process.env.RAZORPAY_KEY_ID,
+  key_secret: process.env.RAZORPAY_KEY_SECRET,
 });
+
 
  
 app.get('/', (req, res) => {
