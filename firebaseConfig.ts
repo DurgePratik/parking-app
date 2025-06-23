@@ -1,21 +1,24 @@
-  
-  // firebaseConfig.ts
 import { initializeApp } from 'firebase/app';
 import { getFirestore } from 'firebase/firestore';
+import {
+  FIREBASE_API_KEY,
+  FIREBASE_AUTH_DOMAIN,
+  FIREBASE_PROJECT_ID,
+  FIREBASE_STORAGE_BUCKET,
+  FIREBASE_MESSAGING_SENDER_ID,
+  FIREBASE_APP_ID
+} from '@env';
 
 const firebaseConfig = {
-  apiKey: "AIzaSyBwsKGRXVliI1SWS3l5IoPqOA9hW2g5-hM",
-  authDomain: "car-app-b8390.firebaseapp.com",
-  projectId: "car-app-b8390",
-  storageBucket: "car-app-b8390.firebasestorage.app",
-  messagingSenderId: "867288690061",
-  appId: "1:867288690061:web:b24c13829e8c56efc021c4"
+  apiKey: FIREBASE_API_KEY,
+  authDomain: FIREBASE_AUTH_DOMAIN,
+  projectId: FIREBASE_PROJECT_ID,
+  storageBucket: FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: FIREBASE_MESSAGING_SENDER_ID,
+  appId: FIREBASE_APP_ID
 };
 
 const app = initializeApp(firebaseConfig);
 const db = getFirestore(app);
 
 export { db };
-
-  
-   
