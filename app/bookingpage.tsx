@@ -1,8 +1,9 @@
 import { GOOGLE_MAPS_API_KEY } from '@env';
 import polyline from '@mapbox/polyline';
+import { useFocusEffect } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
-import { useEffect, useLayoutEffect, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useState } from 'react';
 import { ActivityIndicator, Alert, Dimensions, StyleSheet, View } from 'react-native';
 import MapView, { Marker, Polyline } from 'react-native-maps';
 
@@ -21,37 +22,14 @@ type ParkingSpot = {
 export default function BookingPage() {
   const navigation = useNavigation();
   const router = useRouter();
-  const params = useLocalSearchParams(); 
+  const params = useLocalSearchParams();
   const spotId = params.spotId as string;
 
   const [location, setLocation] = useState<Coord | null>(null);
+  const [parkingSpots, setParkingSpots] = useState<ParkingSpot[]>([]);
   const [routeCoords, setRouteCoords] = useState<Coord[]>([]);
   const [selectedSpot, setSelectedSpot] = useState<ParkingSpot | null>(null);
   const [loading, setLoading] = useState(true);
-
-  const parkingSpots: ParkingSpot[] = [
-    { id: '1', name: 'Parking Lot Mumbai', latitude: 19.076, longitude: 72.8777 },
-    { id: '2', name: 'Parking Lot Delhi', latitude: 28.7041, longitude: 77.1025 },
-    { id: '3', name: 'Parking Lot Bengaluru', latitude: 12.9716, longitude: 77.5946 },
-    { id: '4', name: 'Parking Lot Chennai', latitude: 13.0827, longitude: 80.2707 },
-    { id: '5', name: 'Parking Lot Pune', latitude: 18.5204, longitude: 73.8567 },
-    { id: '6', name: 'Parking Lot Nagpur', latitude: 21.1458, longitude: 79.0882 },
-    { id: '7', name: 'Parking Lot Nashik', latitude: 19.9975, longitude: 73.7898 },
-    { id: '8', name: 'Parking Lot Aurangabad', latitude: 19.8762, longitude: 75.3433 },
-    { id: '9', name: 'Parking Lot Solapur', latitude: 17.6599, longitude: 75.9064 },
-    { id: '10', name: 'Parking Lot Thane', latitude: 19.2183, longitude: 72.9781 },
-    { id: '11', name: 'Parking Lot Kolhapur', latitude: 16.705, longitude: 74.2433 },
-    { id: '12', name: 'Parking Lot Ahmednagar', latitude: 19.0952, longitude: 74.7496 },
-    { id: '13', name: 'Parking Lot Latur', latitude: 18.4066, longitude: 76.5602 },
-    { id: '14', name: 'Parking Lot Amravati', latitude: 20.9333, longitude: 77.75 },
-    { id: '15', name: 'Parking Lot Guwahati', latitude: 26.1445, longitude: 91.7362 },
-    { id: '16', name: 'Parking Lot Shillong', latitude: 25.5788, longitude: 91.8933 },
-    { id: '17', name: 'Parking Lot Itanagar', latitude: 27.0844, longitude: 93.6053 },
-    { id: '18', name: 'Parking Lot Agartala', latitude: 23.8315, longitude: 91.2868 },
-    { id: '19', name: 'Parking Lot Gangtok', latitude: 27.3314, longitude: 88.613 },
-    { id: '20', name: 'Parking Lot Dibrugarh', latitude: 27.4728, longitude: 94.9114 },
-    { id: '21', name: 'Parking Lot Silchar', latitude: 24.8339, longitude: 92.7780 },
-  ];
 
   useLayoutEffect(() => {
     navigation.setOptions({ headerShown: false });
@@ -61,7 +39,7 @@ export default function BookingPage() {
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        alert('Permission denied');
+        alert('Permission to access location was denied');
         setLoading(false);
         return;
       }
@@ -73,17 +51,47 @@ export default function BookingPage() {
       };
       setLocation(userLocation);
 
-      if (spotId) {
-        const spot = parkingSpots.find((s) => s.id === spotId);
-        if (spot) {
-          setSelectedSpot(spot);
-          await fetchDirections(userLocation, spot);  
-        }
-      }
+      await fetchNearbyParkingSpots(userLocation); // Dynamically fetch parking
 
       setLoading(false);
     })();
-  }, [spotId]);
+  }, []);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (!spotId || !location) return;
+
+      const spot = parkingSpots.find((s) => s.id === spotId);
+      if (spot) {
+        setSelectedSpot(spot);
+        setRouteCoords([]);
+        fetchDirections(location, spot);
+      }
+    }, [spotId, location, parkingSpots])
+  );
+
+  const fetchNearbyParkingSpots = async (loc: Coord) => {
+    const url = `https://maps.googleapis.com/maps/api/place/nearbysearch/json?location=${loc.latitude},${loc.longitude}&radius=5000&type=parking&key=${GOOGLE_MAPS_API_KEY}`;
+
+    try {
+      const res = await fetch(url);
+      const data = await res.json();
+
+      if (data.results && data.results.length > 0) {
+        const spots: ParkingSpot[] = data.results.map((place: any) => ({
+          id: place.place_id,
+          name: place.name,
+          latitude: place.geometry.location.lat,
+          longitude: place.geometry.location.lng,
+        }));
+        setParkingSpots(spots);
+      } else {
+        console.warn('No parking spots found nearby.');
+      }
+    } catch (err) {
+      console.error('Error fetching parking spots:', err);
+    }
+  };
 
   const fetchDirections = async (origin: Coord, destination: Coord) => {
     const originStr = `${origin.latitude},${origin.longitude}`;
@@ -99,12 +107,12 @@ export default function BookingPage() {
           latitude: lat,
           longitude: lng,
         }));
-        setRouteCoords(coords);  
+        setRouteCoords(coords);
       } else {
-        console.warn('No route found');
+        console.warn('No route found.');
       }
     } catch (err) {
-      console.error('Failed to fetch route:', err);
+      console.error('Error fetching directions:', err);
     }
   };
 
